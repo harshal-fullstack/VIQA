@@ -15,6 +15,12 @@ from core.vqa import BLIPVQA
 from core.database import VectorDBWrapper
 from core.auth_db import init_db, create_user, verify_user
 
+try:
+    from moviepy import VideoFileClip
+except ImportError as e:
+    print(f"Warning: moviepy not installed or error: {e}")
+from agent import transcribe_audio, run_qa_graph
+
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="VIQA AI Backend")
@@ -57,6 +63,25 @@ async def upload_video(file: UploadFile = File(...)):
     video_path = os.path.join(UPLOAD_DIR, file.filename)
     with open(video_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+        
+    # Extract audio and transcribe
+    audio_path = os.path.join(UPLOAD_DIR, "temp_audio.mp3")
+    transcript_text = ""
+    try:
+        video_clip = VideoFileClip(video_path)
+        if video_clip.audio is not None:
+            video_clip.audio.write_audiofile(audio_path, logger=None)
+            video_clip.close()
+            # Send to Groq Whisper
+            transcript_text = transcribe_audio(audio_path)
+        else:
+            video_clip.close()
+    except Exception as e:
+        print(f"Audio extraction Error: {e}")
+        
+    # Save transcript
+    with open(os.path.join(UPLOAD_DIR, "latest_transcript.txt"), "w", encoding="utf-8") as f:
+        f.write(transcript_text if isinstance(transcript_text, str) else str(transcript_text))
         
     # Extract
     frames_info = extract_frames(video_path, FRAMES_DIR, target_fps=1)
@@ -122,13 +147,23 @@ async def query_video(req: QueryRequest):
     timestamp = best_metadata["timestamp"]
     
     blip = BLIPVQA.get_instance()
-    answer = blip.answer_question(frame_path, question, timestamp)
+    blip_answer = blip.answer_question(frame_path, question, timestamp)
+    
+    # Load Transcript
+    transcript = ""
+    transcript_path = os.path.join(UPLOAD_DIR, "latest_transcript.txt")
+    if os.path.exists(transcript_path):
+        with open(transcript_path, "r", encoding="utf-8") as f:
+            transcript = f.read()
+            
+    # Formulate final answer using LangGraph + Groq LLM
+    final_agent_response = run_qa_graph(transcript=transcript, question=question, blip_context=blip_answer)
     
     frame_filename = os.path.basename(frame_path)
     
     return {
         "timestamp": timestamp,
-        "answer": answer,
+        "answer": final_agent_response,
         "frame": f"http://127.0.0.1:8000/frames/{frame_filename}"
     }
 

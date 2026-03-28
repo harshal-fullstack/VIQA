@@ -9,3 +9,10 @@ transformers
 pillow
 sentence-transformers
 pydantic
+groq
+python-dotenv
+langgraph
+langchain-groq
+langchain
+moviepy
+
