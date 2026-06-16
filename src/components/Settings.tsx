@@ -138,7 +138,7 @@ export default function Settings() {
           <div className="glass-panel" style={{ padding: '2rem', borderRadius: 'var(--radius-2xl)', border: '1px solid var(--border)', background: 'var(--surface-1)' }}>
             <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--foreground)', fontWeight: 500 }}>
               <Database size={20} style={{ color: 'var(--accent)' }} />
-              ChromaDB Management
+              ChromaDB Management-
             </h3>
             <p style={{ color: 'var(--secondary)', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>
               Clear completely vectorized frames and embeddings. This action cannot be undone and will require re-encoding any videos you wish to query.
