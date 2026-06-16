@@ -15,4 +15,3 @@ langgraph
 langchain-groq
 langchain
 moviepy
-
