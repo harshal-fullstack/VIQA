@@ -171,6 +171,14 @@ async def query_video(req: QueryRequest):
 async def clear_database():
     db = VectorDBWrapper()
     db.reset_collection()
+    
+    transcript_path = os.path.join(UPLOAD_DIR, "latest_transcript.txt")
+    if os.path.exists(transcript_path):
+        try:
+            os.remove(transcript_path)
+        except Exception as e:
+            print(f"Failed to remove transcript: {e}")
+            
     return {"status": "success", "message": "Database cleared for new capture session."}
 
 @app.post("/api/upload_frame")

@@ -48,9 +48,9 @@ def generate_final_answer(state: AgentState):
     blip_context = state.get("blip_context", "")
 
     prompt = f"""You are a helpful and intelligent AI video assistant.
-The user is asking a question about a uploaded video.
+The user is asking a question about a video. To help you answer, we used a Vision AI to look at a relevant frame and describe it.
 
-Visual Context (from a relevant frame):
+Vision AI's detailed description of the relevant video frame:
 {blip_context}
 
 Full Audio Transcript of the video:
@@ -59,23 +59,22 @@ Full Audio Transcript of the video:
 User's Question:
 {question}
 
-Based on both the visual context and the video's transcript, provide a concise and comprehensive answer to the user's question. 
-If they ask for a summary, summarize the transcript and visual context. 
-If they ask about a specific detail, find it in the transcript or visual context.
+Based on the Vision AI's description and the video's transcript, provide a concise, natural-sounding answer to the user. 
+Do not mention the "Vision AI" or your internal process. Just answer the question normally.
 """
     try:
         completion = client.chat.completions.create(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a direct and helpful video analysis assistant."
+                    "content": "You are a direct and helpful video analysis assistant. Do not output your thinking process or use <think> tags."
                 },
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
             temperature=0.7,
             max_completion_tokens=500,
         )

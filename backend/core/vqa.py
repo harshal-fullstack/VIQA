@@ -1,12 +1,11 @@
-from transformers import BlipProcessor, BlipForQuestionAnswering, T5Tokenizer, T5ForConditionalGeneration
+from transformers import BlipProcessor, BlipForConditionalGeneration, T5Tokenizer, T5ForConditionalGeneration
 from PIL import Image
 import torch
 import os
 
 class BLIPVQA:
     """
-    Wrapper for Salesforce/blip-vqa-base. Given an image and a question,
-    generates a natural language answer, and formats it using a small LLM.
+    Generates a detailed caption for the image to provide context to the LLM.
     """
     
     _instance = None
@@ -14,14 +13,14 @@ class BLIPVQA:
     @classmethod
     def get_instance(cls):
         if cls._instance is None:
-            print("Loading BLIP VQA model and T5 Formatter. This will take some time...")
+            print("Loading BLIP Caption model... This will take some time...")
             cls._instance = cls()
         return cls._instance
         
-    def __init__(self, model_name="Salesforce/blip-vqa-base"):
+    def __init__(self, model_name="Salesforce/blip-image-captioning-base"):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.processor = BlipProcessor.from_pretrained(model_name)
-        self.model = BlipForQuestionAnswering.from_pretrained(model_name).to(self.device)
+        self.model = BlipForConditionalGeneration.from_pretrained(model_name).to(self.device)
         
         self.t5_tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-small")
         self.t5_model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-small").to(self.device)
@@ -32,18 +31,14 @@ class BLIPVQA:
             
         raw_image = Image.open(image_path).convert('RGB')
         
-        inputs = self.processor(raw_image, question, return_tensors="pt").to(self.device)
+        # We use captioning to provide context. The text prompt can guide the caption.
+        # "a photography of" is a common prompt for BLIP captioning to make it descriptive
+        inputs = self.processor(raw_image, text="a photography of", return_tensors="pt").to(self.device)
         
         with torch.no_grad():
-            out = self.model.generate(**inputs, max_new_tokens=20)
+            out = self.model.generate(**inputs, max_new_tokens=40)
             
-        raw_answer = self.processor.decode(out[0], skip_special_tokens=True)
+        caption = self.processor.decode(out[0], skip_special_tokens=True)
         
-        prompt = f"Convert to a sentence: The answer is '{raw_answer}' at timestamp {timestamp}."
-        with torch.no_grad():
-            input_ids = self.t5_tokenizer(prompt, return_tensors="pt").input_ids.to(self.device)
-            outputs = self.t5_model.generate(input_ids, max_new_tokens=50)
-            formatted_answer = self.t5_tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-        return formatted_answer
+        return caption
 
